@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vet Interview Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, clinical, encouraging - a consult room, not a game show
+   IDEA: the clinic intake clipboard - patient tag on top, conversation, then the record sheet
+   PICTURE: the live consult itself: owner chat with a large turn meter that fills like a syringe barrel
+   COLOUR and TYPE: deep clinic teal dominant, white sheets, coral only for turns running out and safety; IBM Plex Sans Thai
+   LAYOUT: case board -> consult (chat + side meter) -> record & tests -> report; stacks below 760px */
+:root{color-scheme:light dark;--bg:light-dark(#e9efee,#0c1718);--sheet:light-dark(#fff,#132324);--ink:light-dark(#10201f,#e4eeed);--mute:light-dark(#566866,#9db1af);--line:light-dark(#d3dddb,#26393a);--teal:light-dark(#0b5c61,#5fc4c6);--tealbg:light-dark(#0b5c61,#0f3d40);--soft:light-dark(#dcebea,#173436);--coral:light-dark(#c9431a,#ff8a5c);--ok:light-dark(#1d7a4a,#6fd39b)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "IBM Plex Sans Thai",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(26px,4vw,40px)}h2{font-size:24px}h3{font-size:18px}
+button,select,input,textarea{font:inherit;font-size:16px;color:inherit}
+button{min-height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--sheet);cursor:pointer}
+button.pri{background:var(--teal);color:light-dark(#fff,#062021);border-color:transparent;font-weight:600}
+button.warn{border-color:var(--coral);color:var(--coral)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--coral);outline-offset:2px}
+input,select,textarea{width:100%;border:1px solid var(--line);background:var(--sheet);border-radius:10px;padding:10px 12px}
+textarea{min-height:76px;resize:vertical}
+label{font-weight:600;font-size:15px;display:block;margin:14px 0 6px}
+.hint{color:var(--mute);font-size:14px;font-weight:400}
+header{background:var(--tealbg);color:#fff;padding:22px max(5vw,16px)}
+header p{margin:6px 0 0;opacity:.85;max-width:70ch}
+main{max-width:1240px;margin:0 auto;padding:24px max(4vw,14px) 60px}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:16px;padding:clamp(16px,2.4vw,28px)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px}
+.lvl{margin:26px 0 10px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.card{display:flex;flex-direction:column;gap:10px;text-align:left;padding:18px;height:100%;border-radius:14px}
+.card:hover{border-color:var(--teal)}
+.tag{display:inline-block;font-size:13px;padding:2px 10px;border-radius:99px;background:var(--soft);color:var(--teal);font-weight:600}
+.quote{font-size:15px;color:var(--mute);border-left:3px solid var(--teal);padding-left:10px}
+.consult{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.chat{height:min(62vh,640px);overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:6px 4px 12px}
+.msg{max-width:82%;padding:10px 14px;border-radius:14px;white-space:pre-wrap}
+.msg.o{background:var(--soft);border-bottom-left-radius:4px}
+.msg.s{align-self:flex-end;background:var(--teal);color:light-dark(#fff,#062021);border-bottom-right-radius:4px}
+.msg .who{display:block;font-size:13px;font-weight:600;opacity:.75}
+.msg.sys{align-self:center;background:none;color:var(--mute);font-size:14px;text-align:center}
+.compose{display:flex;gap:10px;margin-top:10px}.compose textarea{min-height:52px}
+.side{position:sticky;top:12px;display:flex;flex-direction:column;gap:14px}
+.meter{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin:10px 0}
+.meter i{height:16px;border-radius:3px;background:var(--line)}
+.meter i.u{background:var(--teal)}.meter i.l{background:var(--coral)}
+.big{font-size:44px;font-weight:700;line-height:1}
+.patient{font-size:15px}.patient b{display:block;font-size:17px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+th{font-size:14px;color:var(--mute);font-weight:600}
+.scroll{overflow-x:auto}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.lab{display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.lab input[type=checkbox]{width:22px;height:22px;margin-top:3px}
+.lab input[type=text]{grid-column:2;font-size:15px;padding:8px 10px}
+.score{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.bar{grid-column:1/-1;height:10px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar b{display:block;height:100%;background:var(--teal)}
+.cap{border:2px solid var(--coral);border-radius:12px;padding:12px 16px;color:var(--ink)}
+.cap strong{color:var(--coral)}
+.verdict{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center}
+.ring{width:132px;height:132px}
+.note{font-size:13px;color:var(--mute);margin-top:10px}
+.wait{display:flex;gap:10px;align-items:center;color:var(--mute)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--teal);animation:p 1s infinite alternate}
+@keyframes p{to{opacity:.2}}
+@media(prefers-reduced-motion:reduce){.dot{animation:none}}
+section+section{margin-top:18px}
+ul,ol{padding-left:22px;margin:6px 0}
+[hidden]{display:none!important}
+@media(max-width:760px){.consult,.two{grid-template-columns:minmax(0,1fr)}.side{position:static;order:-1}.chat{height:52vh}.verdict{grid-template-columns:minmax(0,1fr)}.msg{max-width:92%}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:7em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:6.5em;margin-inline-start:-7em;font-weight:600;color:var(--mute)}.stack td:empty{display:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+  <h1>Vet Interview Lab</h1>
+  <p>ฝึกซักประวัติกับ AI ที่เล่นเป็นเจ้าของสัตว์ ภายในโควตาคำถามที่จำกัด แล้วรับคะแนน 100 คะแนนพร้อมคำวิจารณ์และหลักการที่เอาไปใช้ต่อได้</p>
+</header>
+<main>
+  <div id="noai" class="sheet" hidden><strong>หน้านี้ยังเรียกใช้ AI ไม่ได้ในมุมมองนี้</strong> เปิดหน้าใน claude.ai แล้วกดอนุญาตเมื่อระบบถาม จึงจะคุยกับเจ้าของสัตว์และรับคะแนนได้</div>
+
+  <!-- 1 case board -->
+  <div id="v-cases">
+    <div id="resume" class="sheet row" hidden style="justify-content:space-between;margin-bottom:16px">
+      <span>มีรอบที่ยังทำไม่จบ: <b id="resumeName"></b></span>
+      <span class="row"><button class="pri" id="resumeBtn">ทำต่อ</button><button id="discardBtn">ทิ้งรอบนั้น</button></span>
+    </div>
+    <div class="sheet">
+      <div class="row" style="justify-content:space-between">
+        <h2>เลือกเคส</h2>
+        <div class="row" style="width:min(100%,420px)">
+          <label for="persona" style="margin:0">บุคลิกเจ้าของ</label>
+          <select id="persona" style="flex:1">
+            <option value="">ตามค่าเริ่มต้นของเคส</option>
+            <option>Cooperative</option><option>Anxious</option><option>Low Medical Literacy</option><option>Incomplete Recall</option>
+          </select>
+          <button id="randomBtn">สุ่มเคส</button>
+        </div>
+      </div>
+      <div id="board"><p class="wait"><span class="dot"></span>กำลังโหลดเคส…</p></div>
+      <p class="note">ข้อมูลเคส ค่าแล็บ และภาพถ่ายรังสีเป็นตัวอย่างจำลองเพื่อการสอน ยังรอคณาจารย์ตรวจทาน</p>
+    </div>
+  </div>
+
+  <!-- 2 consult -->
+  <div id="v-chat" hidden>
+    <div class="consult">
+      <div class="sheet">
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <form class="compose" id="composeForm">
+          <label for="ask" class="hint" hidden>คำถามถึงเจ้าของ</label>
+          <textarea id="ask" placeholder="พิมพ์คำถามถึงเจ้าของ แล้วกด Enter (Shift+Enter ขึ้นบรรทัดใหม่)"></textarea>
+          <button class="pri" id="sendBtn" type="submit">ส่ง</button>
+        </form>
+      </div>
+      <aside class="side">
+        <div class="sheet patient" id="patientBox"></div>
+        <div class="sheet">
+          <div class="hint">ใช้ไปแล้ว</div>
+          <div><span class="big" id="used">0</span> <span class="hint">/ <span id="quota">10</span> turn</span></div>
+          <div class="meter" id="meter"></div>
+          <div class="hint" id="meterNote">ทักทาย สะท้อนความรู้สึก และสรุปทวน ไม่นับ turn</div>
+        </div>
+        <button class="warn" id="endBtn">จบการซักประวัติ</button>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 3 record & tests -->
+  <div id="v-record" hidden>
+    <div class="two">
+      <section class="sheet">
+        <h2>บันทึกประวัติ</h2>
+        <p class="hint">เขียนจากสิ่งที่เจ้าของพูดจริงเท่านั้น แปลภาษาชาวบ้านเป็นศัพท์คลินิก ข้อมูลที่ไม่ได้ถามให้ใส่ในข้อ 5</p>
+        <div id="formFields"></div>
+      </section>
+      <div>
+        <section class="sheet">
+          <h2>ขอตรวจเพิ่ม</h2>
+          <p class="hint">ตรวจร่างกายได้ 1 ครั้ง และสั่งแล็บ/ภาพวินิจฉัยได้ไม่เกิน 3 รายการ ต้องบอกว่าตรวจเพื่อแยกโรคอะไร</p>
+          <button id="peBtn">ตรวจร่างกายเบื้องต้น</button>
+          <div id="peOut" class="note" style="font-size:15px;color:var(--ink)"></div>
+          <div id="labList" style="margin-top:12px"></div>
+          <div class="row" style="margin-top:12px"><button class="pri" id="labBtn">ส่งตรวจ (<span id="labCount">0</span>/3)</button></div>
+          <div id="labOut" class="scroll" style="margin-top:12px"></div>
+        </section>
+        <section class="sheet">
+          <h3>สรุปหลังเห็นผลตรวจ</h3>
+          <label for="f_final">Differential สุดท้าย 3 อันดับ พร้อมเหตุผลที่ปรับจากผลตรวจ</label>
+          <textarea id="f_final" data-f="final"></textarea>
+          <div class="row" style="margin-top:14px"><button class="pri" id="assessBtn">ส่งให้ AI อาจารย์ประเมิน</button><button id="backChat">ดูบทสนทนา</button></div>
+          <p id="assessWait" class="wait" hidden><span class="dot"></span><span id="assessMsg">AI อาจารย์กำลังอ่านบทสนทนาและบันทึก ใช้เวลาราว 1 นาที</span></p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 report -->
+  <div id="v-report" hidden></div>
+</main>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS='vil.session.v1';
+const DOMAINS=['การเปิดการสนทนาและเก็บข้อมูลผู้ป่วย','คุณภาพของ HPI','ทบทวนระบบและประวัติที่เกี่ยวข้อง','Red flag และความเร่งด่วน','เทคนิคการถาม','การสื่อสารและความเห็นอกเห็นใจ','ความถูกต้องของการบันทึก','การคิดเชิงเหตุผลและแผนต่อ'];
+const MAX=[10,20,20,10,10,10,10,10];
+const FIELDS=[['sig','1. ข้อมูลผู้ป่วย (signalment)','ชื่อ ชนิด สายพันธุ์ เพศ ทำหมัน อายุ น้ำหนัก การเลี้ยง'],['cc','2. Chief complaint','อาการหลัก 1 บรรทัด พร้อมระยะเวลา'],['hpi','3. History of present illness','ไทม์ไลน์ แยกช่วงเรื้อรัง/เฉียบพลัน ใส่ตัวเลขที่ได้จากการถาม'],['ph','4. Pertinent history','ยา วัคซีน/พยาธิ อาหาร สิ่งแวดล้อม โรคเดิม สัตว์อื่น การเดินทาง'],['unk','5. ข้อมูลที่ไม่แน่ใจ / ยังขาด',''],['prob','6. Problem list','แยกเป็นข้อ เรียงตามความสำคัญ'],['ddx','7. Differential diagnosis (อย่างน้อย 3)','แต่ละโรค: ข้อมูลสนับสนุน / คัดค้าน / ตรวจอะไรเพื่อแยก'],['urg','8. Initial assessment และความเร่งด่วน','เร่งด่วนหรือไม่ เพราะอะไร'],['plan','9. แผนตรวจเพิ่มเบื้องต้น','ตรวจอะไร ทำไม เรียงตามความจำเป็น']];
+let DATA=null,S=null,sample=null,busy=false;
+
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
+const load=()=>{try{return JSON.parse(localStorage.getItem(LS)||'null')}catch(e){return null}};
+const show=v=>{for(const id of ['cases','chat','record','report'])$('#v-'+id).hidden=id!==v;window.scrollTo(0,0)};
+const kase=()=>DATA.cases.find(c=>c.n===S.n);
+const parseJSON=t=>{const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)throw new Error('no json');return JSON.parse(t.slice(a,b+1))};
+
+/* ---------- board ---------- */
+function renderBoard(){
+  const groups=[['Beginner','ระดับเริ่มต้น'],['Intermediate','ระดับกลาง'],['Advanced','ระดับยาก']];
+  $('#board').innerHTML=groups.map(([lv,th])=>{
+    const cs=DATA.cases.filter(c=>c.level===lv);
+    return `<div class="lvl"><h3>${th}</h3><span class="hint">${cs[0]?.quota} turn ต่อรอบ</span></div><div class="grid">${cs.map(c=>`
+      <button class="card" data-n="${c.n}"><span class="row"><span class="tag">เคส ${c.n}</span><span class="tag">${c.species}</span></span>
+      <b>${esc(c.patient)}</b>
+      <span class="quote">${esc(c.opening)}</span></button>`).join('')}</div>`}).join('');
+}
+function startCase(n){
+  const c=DATA.cases.find(x=>x.n===n);
+  S={n,persona:$('#persona').value,used:0,trust:'Neutral',msgs:[{r:'o',t:c.opening,k:0}],form:{},pe:false,labs:{},ordered:[],stage:'chat',report:null,started:Date.now()};
+  save();openChat();
+}
+/* ---------- consult ---------- */
+function openChat(){
+  const c=kase();show('chat');
+  $('#quota').textContent=c.quota;
+  $('#patientBox').innerHTML=`<span class="tag">เคส ${c.n} · ${c.level}</span><b style="margin-top:8px">${esc(c.patient)}</b><span class="hint">เจ้าของ: ${esc(c.owner.split(' บุคลิก')[0])}</span>`;
+  renderChat();
+}
+function renderChat(){
+  const c=kase();
+  $('#chat').innerHTML=S.msgs.map(m=>m.r==='sys'?`<div class="msg sys">${esc(m.t)}</div>`:
+    `<div class="msg ${m.r}"><span class="who">${m.r==='o'?'เจ้าของ':'คุณ'+(m.r==='s'?` · ${m.k?`นับ ${m.k} turn`:'ไม่นับ turn'}`:'')}</span>${esc(m.t)}</div>`).join('')+(busy?'<div class="msg sys wait"><span class="dot"></span>เจ้าของกำลังตอบ…</div>':'');
+  $('#chat').scrollTop=1e9;
+  $('#used').textContent=S.used;
+  const n=Math.max(c.quota,S.used);
+  $('#meter').style.gridTemplateColumns=`repeat(${Math.min(n,15)},1fr)`;
+  $('#meter').innerHTML=Array.from({length:n},(_,i)=>`<i class="${i<S.used?(c.quota-S.used<=3?'l':'u'):''}"></i>`).join('');
+  const left=c.quota-S.used;
+  $('#meterNote').textContent=left<=0?'ใช้ครบโควตาแล้ว ไปขั้นบันทึกประวัติ':left<=3?`เหลืออีก ${left} turn เลือกคำถามที่สำคัญที่สุด`:'ทักทาย สะท้อนความรู้สึก และสรุปทวน ไม่นับ turn';
+  $('#meterNote').style.color=left<=3?'var(--coral)':'';
+  const done=left<=0||S.stage!=='chat';
+  $('#ask').disabled=$('#sendBtn').disabled=done||busy||!sample;
+  $('#endBtn').textContent=S.stage==='chat'?'จบการซักประวัติ':'ไปที่บันทึกประวัติ';
+}
+function transcript(withCount){
+  let t=0;return S.msgs.filter(m=>m.r!=='sys').map(m=>{
+    if(m.r==='o')return `เจ้าของ: ${m.t}`;
+    t+=m.k;return `นักศึกษา${withCount?` [นับ ${m.k} turn, สะสม ${t}]`:''}: ${m.t}`}).join('\n');
+}
+function ownerPrompt(q){
+  const c=kase(),G=DATA.global;
+  return `คุณกำลังเล่นบทเป็น "เจ้าของสัตว์" ในการจำลองการซักประวัติสำหรับนักศึกษาสัตวแพทย์ ตอบเป็นภาษาไทยแบบชาวบ้าน สั้น เป็นธรรมชาติ ไม่ใช้ศัพท์แพทย์ ห้ามเอ่ยชื่อโรคหรือเดาการวินิจฉัย ห้ามแต่งข้อมูลที่ไม่มีในข้อมูลเคส ถ้าไม่มีให้ตอบว่าไม่ทราบหรือไม่ได้สังเกต ห้ามบอกว่าตัวเองเป็น AI
+
+# กติกาเจ้าของสัตว์ (ปฏิบัติตามเคร่งครัด)
+${G.ownerRules}
+
+# กติกาการนับ turn
+${G.turnRules.split('**กติกาการนับ turn**')[1]?.split('**สถานะ')[0]||''}
+
+# ข้อมูลเคส (เฉพาะสิ่งที่เจ้าของรู้)
+${c.A}
+
+${c.B}
+
+บุคลิกที่ต้องเล่น: ${S.persona||'ตามที่ระบุในข้อมูลเคส'}
+สถานะความไว้ใจตอนนี้: ${S.trust}
+turn ที่ใช้ไปแล้ว: ${S.used} จาก ${c.quota}
+
+# บทสนทนาที่ผ่านมา
+${transcript(false)}
+
+# ข้อความล่าสุดของนักศึกษา
+${q}
+
+ตอบกลับเป็น JSON อย่างเดียว ไม่มีข้อความอื่น:
+{"reply":"คำตอบของเจ้าของ","turns":จำนวน turn ที่ข้อความนี้นับตามกติกา (0 ถ้าเป็นทักทาย/เห็นใจ/สรุปทวน/ขอให้พูดซ้ำ),"intents":["หัวข้อที่ถาม"],"trust":"Open|Neutral|Guarded หลังข้อความนี้"}`;
+}
+async function send(e){
+  e?.preventDefault();
+  const q=$('#ask').value.trim();if(!q||busy||!sample)return;
+  S.msgs.push({r:'s',t:q,k:0});$('#ask').value='';busy=true;renderChat();
+  try{
+    const r=parseJSON((await sample(ownerPrompt(q),{modelTier:'default',cache:false})).text);
+    const m=S.msgs[S.msgs.length-1];m.k=Math.max(0,Math.round(+r.turns||0));S.used+=m.k;
+    if(['Open','Neutral','Guarded'].includes(r.trust))S.trust=r.trust;
+    S.msgs.push({r:'o',t:String(r.reply||'…')});
+    if(S.used>=kase().quota)S.msgs.push({r:'sys',t:'ครบโควตาแล้ว กด "จบการซักประวัติ" เพื่อไปบันทึกประวัติ'});
+  }catch(err){
+    S.msgs.pop();$('#ask').value=q;
+    S.msgs.push({r:'sys',t:err?.code==='rate_limited'?'ระบบขอให้รอสักครู่ แล้วลองส่งใหม่':'ส่งไม่สำเร็จ ลองส่งใหม่อีกครั้ง'});
+  }
+  busy=false;save();renderChat();$('#ask').focus();
+}
+/* ---------- record & tests ---------- */
+function openRecord(){
+  const c=kase();S.stage=S.stage==='chat'?'record':S.stage;save();show('record');
+  $('#formFields').innerHTML=FIELDS.map(([k,l,h])=>`<label for="f_${k}">${l} ${h?`<span class="hint">${h}</span>`:''}</label><textarea id="f_${k}" data-f="${k}">${esc(S.form[k]||'')}</textarea>`).join('');
+  $('#f_final').value=S.form.final||'';
+  $('#peBtn').disabled=S.pe;$('#peOut').textContent=S.pe?c.C:'';
+  $('#labList').innerHTML=c.labs.map((l,i)=>`<div class="lab"><input type="checkbox" id="lb${i}" data-i="${i}" ${S.labs[i]!==undefined?'checked':''} ${S.ordered.length?'disabled':''}><label for="lb${i}" style="margin:0;font-weight:500">${esc(l.name)}</label>
+    <input type="text" data-r="${i}" placeholder="ตรวจเพื่อแยกโรคอะไร" value="${esc(S.labs[i]||'')}" ${S.labs[i]===undefined||S.ordered.length?'hidden':''} ${S.ordered.length?'disabled':''}></div>`).join('');
+  renderLabs();
+}
+function renderLabs(){
+  const c=kase(),n=Object.keys(S.labs).length;
+  $('#labCount').textContent=n;
+  $('#labBtn').disabled=!!S.ordered.length||!n||Object.values(S.labs).some(v=>!v.trim());
+  $('#labOut').innerHTML=S.ordered.length?`<table class="stack"><thead><tr><th>รายการ</th><th>ผล</th><th>ค่าอ้างอิงตัวอย่าง</th></tr></thead><tbody>${S.ordered.map(i=>`<tr><td>${esc(c.labs[i].name)}</td><td><b>${esc(c.labs[i].result)}</b></td><td>${esc(c.labs[i].ref)}</td></tr>`).join('')}</tbody></table><p class="note">แปลผลเอง แล้วปรับ differential ในช่องด้านล่าง</p>`:'';
+}
+async function assess(){
+  if(busy||!sample)return;
+  const c=kase(),G=DATA.global;
+  const formTxt=FIELDS.map(([k,l])=>`${l}: ${S.form[k]||'(ว่าง)'}`).join('\n')+`\nDifferential สุดท้ายหลังเห็นผลตรวจ: ${S.form.final||'(ว่าง)'}`;
+  const tests=`ตรวจร่างกาย: ${S.pe?'ขอแล้ว':'ไม่ได้ขอ'}\nแล็บ/ภาพที่สั่ง: ${S.ordered.length?S.ordered.map(i=>`${c.labs[i].name} (เหตุผล: ${S.labs[i]})`).join('; '):'ไม่ได้สั่ง'}`;
+  const prompt=`คุณคือ AI อาจารย์สัตวแพทย์ผู้ประเมินการซักประวัติของนักศึกษา ใช้เกณฑ์และเฉลยด้านล่างอย่างเคร่งครัด ทุกคะแนนต้องอ้างหลักฐานจากเลข turn หรือฟอร์มบันทึก เขียนภาษาไทย น้ำเสียงอบอุ่น ตรงไปตรงมา ไม่ตัดสินตัวบุคคล
+
+# เกณฑ์คะแนน
+${G.rubric}
+
+# Critical Safety Gate
+${G.safety}
+
+# แบบฟอร์มบันทึกและหลักการตรวจ
+${G.form}
+
+# รูปแบบ Debrief และคลังหลักการ
+${G.debrief}
+
+# เคส ${c.n} (${c.title}) ระดับ ${c.level} โควตา ${c.quota} turn
+${c.meta}
+${c.A}
+${c.B}
+ตรวจร่างกาย: ${c.C}
+ผลตรวจ: ${c.labs.map(l=>`${l.name}=${l.result}`).join('; ')}
+${c.E}
+${c.F}
+${c.G}
+${c.H}
+
+# บุคลิกเจ้าของที่ใช้: ${S.persona||'ค่าเริ่มต้นของเคส'} · สถานะความไว้ใจตอนจบ: ${S.trust}
+# บทสนทนา (ใช้ไป ${S.used}/${c.quota} turn)
+${transcript(true)}
+
+# การขอตรวจ
+${tests}
+
+# ฟอร์มบันทึกของนักศึกษา
+${formTxt}
+
+ตอบเป็น JSON อย่างเดียว ตามโครงนี้ (ห้ามรวมคะแนนเอง โค้ดจะรวมให้):
+{"domains":[{"score":ตัวเลข,"evidence":"เลข turn หรือข้อความในฟอร์มที่อ้าง","comment":"1-2 ประโยค"}  ...ครบ 8 ด้านตามลำดับ คะแนนเต็ม 10,20,20,10,10,10,10,10],
+"critical_missed":["Critical miss ที่ไม่ได้ถาม"],"unsafe_advice":["คำแนะนำไม่ปลอดภัยที่นักศึกษาพูด อ้าง turn"],
+"reveal":{"diagnosis":"โรคจริง","story":"ไทม์ไลน์จริงของเคส 2-3 ประโยค","traps":"ตัวลวงในเคส"},
+"questions":[{"turn":"เลข turn","q":"คำถามย่อ","type":"เปิด|ปิด|นำ|ซ้ำ|นอกเรื่อง|สะท้อน/สรุป|ให้คำแนะนำ","got":"ได้ข้อมูลอะไร","note":"ความเห็นสั้น"}],
+"missed":[{"item":"ข้อมูลที่พลาด","why":"สำคัญอย่างไร","sample":"ประโยคตัวอย่างภาษาชาวบ้านที่ควรถาม"}],
+"record_issues":[{"wrote":"สิ่งที่นักศึกษาเขียน","issue":"ปัญหา","better":"ควรเขียนว่า"}],
+"owner_voice":"เจ้าของรู้สึกอย่างไร 2-3 ประโยค พูดในฐานะเจ้าของ",
+"takeaways":{"clinical":"","communication":"","thinking":""},"principles":["P2 ...","P7 ..."],
+"socratic":["คำถามชวนคิด 3 ข้อ อย่างน้อย 1 ข้อเกี่ยวกับความรู้สึกเจ้าของ"],"prescription":["ทักษะที่ควรฝึกต่อ และเคสที่แนะนำ"],"summary":"สรุป 2 ประโยค"}`;
+  busy=true;$('#assessBtn').disabled=true;$('#assessWait').hidden=false;
+  try{
+    let len=0;const res=await sample(prompt,{modelTier:'complex',cache:false,onText:({text})=>{len=text.length;$('#assessMsg').textContent=`AI อาจารย์กำลังเขียนรายงาน… (${len.toLocaleString()} ตัวอักษร)`}});
+    S.report=parseJSON(res.text);S.stage='report';save();renderReport();
+  }catch(err){
+    $('#assessMsg').textContent=err?.code==='rate_limited'?'ระบบขอให้รอสักครู่ แล้วกดส่งใหม่':'ประเมินไม่สำเร็จ กดส่งอีกครั้ง';
+  }
+  busy=false;$('#assessBtn').disabled=false;
+}
+/* ---------- report ---------- */
+function capOf(r){
+  const m=(r.critical_missed||[]).length,u=(r.unsafe_advice||[]).length;
+  if(u&&m)return 50;if(u)return 60;if(m>=2)return 65;if(m===1)return 75;return null;
+}
+function renderReport(){
+  const c=kase(),r=S.report,cap=capOf(r);
+  const sc=MAX.map((mx,i)=>Math.max(0,Math.min(mx,Math.round(+r.domains?.[i]?.score||0))));
+  const raw=sc.reduce((a,b)=>a+b,0),total=cap?Math.min(raw,cap):raw;
+  const band=p=>p>=.9?'ยอดเยี่ยม':p>=.7?'ดี':p>=.4?'พอใช้':'ต้องพัฒนา';
+  const C=2*Math.PI*56,list=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  const T=r.takeaways||{};
+  const html=`
+  <section class="sheet"><div class="verdict">
+    <svg class="ring" viewBox="0 0 132 132" role="img" aria-label="คะแนนรวม ${total} จาก 100"><circle cx="66" cy="66" r="56" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="66" cy="66" r="56" fill="none" stroke="${cap?'var(--coral)':'var(--teal)'}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C*total/100} ${C}" transform="rotate(-90 66 66)"/><text x="66" y="74" text-anchor="middle" font-size="34" font-weight="700" fill="currentColor">${total}</text></svg>
+    <div><span class="tag">เคส ${c.n} · ${c.level} · ใช้ ${S.used}/${c.quota} turn</span><h2 style="margin-top:8px">${esc(r.summary||'')}</h2>
+    ${cap?`<div class="cap" style="margin-top:12px"><strong>Safety Gate จำกัดคะแนนไว้ที่ ${cap}</strong> (คะแนนตามเกณฑ์ ${raw})<ul>${list((r.critical_missed||[]).map(x=>'ไม่ได้ถาม: '+x))}${list((r.unsafe_advice||[]).map(x=>'คำแนะนำไม่ปลอดภัย: '+x))}</ul></div>`:`<p class="hint">ผ่าน Safety Gate</p>`}</div></div></section>
+  <section class="sheet"><h2>คะแนน 8 ด้าน</h2>${DOMAINS.map((d,i)=>`<div class="score"><span><b>${i+1}. ${d}</b> <span class="hint">${band(sc[i]/MAX[i])}</span></span><b>${sc[i]}/${MAX[i]}</b><div class="bar"><b style="width:${sc[i]/MAX[i]*100}%"></b></div><span class="hint" style="grid-column:1/-1">${esc(r.domains?.[i]?.comment||'')} ${r.domains?.[i]?.evidence?`<i>(${esc(r.domains[i].evidence)})</i>`:''}</span></div>`).join('')}</section>
+  <section class="sheet"><h2>เฉลย: ${esc(r.reveal?.diagnosis||c.title)}</h2><p>${esc(r.reveal?.story||'')}</p><p><b>ตัวลวงในเคส:</b> ${esc(r.reveal?.traps||'')}</p></section>
+  <section class="sheet"><h2>ไล่ดูรายคำถาม</h2><div class="scroll"><table class="stack"><thead><tr><th>turn</th><th>คำถาม</th><th>ประเภท</th><th>ได้ข้อมูล</th><th>ความเห็น</th></tr></thead><tbody>${(r.questions||[]).map(q=>`<tr><td>${esc(q.turn)}</td><td>${esc(q.q)}</td><td>${esc(q.type)}</td><td>${esc(q.got)}</td><td>${esc(q.note)}</td></tr>`).join('')}</tbody></table></div></section>
+  <div class="two">
+    <section class="sheet"><h2>สิ่งที่ยังไม่ได้ถาม</h2>${(r.missed||[]).map(m=>`<p><b>${esc(m.item)}</b><br><span class="hint">${esc(m.why)}</span><br>ลองถามว่า: “${esc(m.sample)}”</p>`).join('')||'<p class="hint">ไม่มีข้อสำคัญที่พลาด</p>'}</section>
+    <section class="sheet"><h2>ถ้าเจ้าของพูดได้</h2><p class="quote" style="font-size:17px;color:var(--ink)">${esc(r.owner_voice||'')}</p><p class="hint">สถานะความไว้ใจตอนจบ: ${S.trust}</p>
+      <h3 style="margin-top:16px">การบันทึก</h3>${(r.record_issues||[]).map(x=>`<p><s>${esc(x.wrote)}</s><br><span class="hint">${esc(x.issue)}</span><br>→ ${esc(x.better)}</p>`).join('')||'<p class="hint">บันทึกตรงกับบทสนทนา</p>'}</section>
+  </div>
+  <section class="sheet"><h2>3 ข้อที่เอากลับไปใช้</h2><ol><li><b>ด้านคลินิก:</b> ${esc(T.clinical)}</li><li><b>ด้านการสื่อสาร:</b> ${esc(T.communication)}</li><li><b>ด้านวิธีคิด:</b> ${esc(T.thinking)}</li></ol>${r.principles?.length?`<p class="hint">หลักการที่เกี่ยวข้อง: ${esc(r.principles.join(' · '))}</p>`:''}</section>
+  <div class="two">
+    <section class="sheet"><h2>คำถามชวนคิด</h2><p class="hint">ลองตอบเองก่อนไปเคสถัดไป</p><ol>${list(r.socratic)}</ol></section>
+    <section class="sheet"><h2>ฝึกต่อ</h2><ul>${list(r.prescription)}</ul></section>
+  </div>
+  <section class="sheet row"><button class="pri" id="newBtn">เลือกเคสใหม่</button><button id="retryBtn">ทำเคสนี้อีกครั้ง</button><button id="copyBtn">คัดลอกรายงาน</button><button id="seeChat">ดูบทสนทนา</button><span id="copied" class="hint"></span></section>`;
+  $('#v-report').innerHTML=html;show('report');
+}
+function reportText(){
+  const c=kase(),r=S.report,cap=capOf(r),sc=MAX.map((mx,i)=>Math.max(0,Math.min(mx,Math.round(+r.domains?.[i]?.score||0)))),raw=sc.reduce((a,b)=>a+b,0);
+  return `Vet Interview Lab · เคส ${c.n} (${c.level})\nคะแนน ${cap?Math.min(raw,cap):raw}/100${cap?` (Safety Gate จำกัดที่ ${cap})`:''}\n`+DOMAINS.map((d,i)=>`${i+1}. ${d}: ${sc[i]}/${MAX[i]}`).join('\n')+`\n\nสิ่งที่ยังไม่ได้ถาม:\n${(r.missed||[]).map(m=>'- '+m.item).join('\n')}\n\nTake-away:\n- ${r.takeaways?.clinical}\n- ${r.takeaways?.communication}\n- ${r.takeaways?.thinking}\n\nบทสนทนา:\n${transcript(true)}`;
+}
+/* ---------- events ---------- */
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.n)startCase(+b.dataset.n);
+  else if(b.id==='randomBtn')startCase(DATA.cases[Math.floor(Math.random()*DATA.cases.length)].n);
+  else if(b.id==='endBtn')openRecord();
+  else if(b.id==='backChat'||b.id==='seeChat')openChat();
+  else if(b.id==='peBtn'){S.pe=true;save();openRecord()}
+  else if(b.id==='labBtn'){S.ordered=Object.keys(S.labs).map(Number);save();openRecord()}
+  else if(b.id==='assessBtn')assess();
+  else if(b.id==='newBtn'){S=null;try{localStorage.removeItem(LS)}catch(_){}show('cases');checkResume()}
+  else if(b.id==='retryBtn'){$('#persona').value=S.persona||'';startCase(S.n)}
+  else if(b.id==='resumeBtn')S.stage==='report'?renderReport():S.stage==='chat'?openChat():openRecord();
+  else if(b.id==='discardBtn'){S=null;try{localStorage.removeItem(LS)}catch(_){}checkResume()}
+  else if(b.id==='copyBtn'){try{await navigator.clipboard.writeText(reportText());$('#copied').textContent='คัดลอกแล้ว'}catch(_){$('#copied').textContent='คัดลอกไม่ได้ในมุมมองนี้'}}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;if(!S)return;
+  if(t.dataset.f){S.form[t.dataset.f]=t.value;save()}
+  if(t.dataset.r!==undefined){S.labs[t.dataset.r]=t.value;save();renderLabs()}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;if(t.dataset.i===undefined)return;
+  const i=t.dataset.i;
+  if(t.checked){if(Object.keys(S.labs).length>=3){t.checked=false;return}S.labs[i]=''}else delete S.labs[i];
+  save();openRecord();
+});
+$('#composeForm').addEventListener('submit',send);
+$('#ask').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
+function checkResume(){
+  const s=load();const c=s&&DATA.cases.find(x=>x.n===s.n);
+  $('#resume').hidden=!c;if(c){S=s;$('#resumeName').textContent=`เคส ${c.n} · ${c.patient.split(' ')[0]}`}
+}
+/* ---------- boot ---------- */
+fetch('cases.json').then(r=>r.json()).then(d=>{DATA=d;renderBoard();checkResume()}).catch(()=>{$('#board').innerHTML='<p>โหลดข้อมูลเคสไม่สำเร็จ ลองรีเฟรชหน้า</p>'});
+(async()=>{for(let i=0;i<50&&!window.claude;i++)await new Promise(r=>setTimeout(r,100));try{sample=await window.claude?.use?.('sample')}catch(_){sample=null}$('#noai').hidden=!!sample;if(S&&!$('#v-chat').hidden)renderChat()})();
+}
+</script>
+</body>
+</html>
